@@ -1,31 +1,23 @@
-from typing import List
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.db.mysql import get_session
-from app.services import paciente as paciente_service
-from app.schemas.paciente import PacienteCrear, Paciente
+from app.db.mysql import get_db
+from app.schemas.evento import EventoCreate
+from app.services.evento_service import (
+    validar_fechas_evento,
+    validar_disponibilidad_instalacion,
+)
+from app.crud import evento as crud_evento
 
 router = APIRouter()
 
-@router.post("/", response_model=Paciente, status_code=status.HTTP_201_CREATED)
-async def crear_paciente(
-    paciente: PacienteCrear,
-    session: AsyncSession = Depends(get_session)
-):
-    paciente_modelo = await paciente_service.crear_paciente_service(session, paciente)
-    return paciente_modelo # Pydantic convierte el modelo SQLAlchemy al schema gracias a from_attributes=True
+@router.post("/eventos/")
+async def crear_evento(evento: EventoCreate, db: AsyncSession = Depends(get_db)):
+    # 1️⃣ Validar reglas
+    validar_fechas_evento(evento.fecha_inicio, evento.fecha_fin)
+    await validar_disponibilidad_instalacion(
+        db, evento.instalacion_id, evento.fecha_inicio, evento.fecha_fin
+    )
 
-@router.get("/", response_model=List[Paciente], status_code=status.HTTP_200_OK)
-async def listar_pacientes(
-    session: AsyncSession = Depends(get_session)
-):
-    pacientes = await paciente_service.listar_pacientes_service(session)
-    return pacientes
-
-@router.get("/{id_paciente}", response_model=Paciente, status_code=status.HTTP_200_OK)
-async def obtener_paciente_por_id(
-    id_paciente: int,
-    session: AsyncSession = Depends(get_session)
-):
-    paciente = await paciente_service.buscar_paciente_por_id(session, id_paciente)
-    return paciente
+    # 2️⃣ Crear evento si todo está correcto
+    nuevo_evento = await crud_evento.crear_evento(db, evento)
+    return nuevo_evento
