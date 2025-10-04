@@ -1,56 +1,68 @@
-from typing import Optional
-from sqlalchemy.orm import selectinload
-from sqlalchemy import Sequence, select
-from sqlalchemy.exc import IntegrityError
 from fastapi import HTTPException, status
-from sqlalchemy.ext.asyncio import AsyncSession
-from app.crud import paciente as paciente_crud
-from app.schemas.paciente import PacienteCrear
-from app.models.paciente import PacienteModel
+from datetime import datetime
+from app.crud import evento as crud_evento
+from app.crud import evento as crud_evento, acta as crud_acta, notificacion as crud_notificacion
+from app.models.notificacion import Notificacion
 
-# Aquí se podría importar otros módulos, como un servicio de notificaciones
 
-async def crear_paciente_service(session: AsyncSession, nuevo_paciente: PacienteCrear) -> PacienteModel:
-    # --- PASO 1: LÓGICA DE NEGOCIO (VALIDACIÓN) ---
-    # Regla: No permitir duplicados exactos (mismo nombre y fecha de nacimiento).
-    paciente_existente = await paciente_crud.buscar_paciente_por_nombre_y_fecha(
-        session,
-        nombre=nuevo_paciente.nombre,
-        fecha_nacimiento=nuevo_paciente.fecha_nacimiento
-    )
-
-    if paciente_existente:
+def validar_fechas_evento(fecha_inicio: datetime, fecha_fin: datetime):
+    if fecha_inicio > fecha_fin:
         raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Ya existe un paciente con el mismo nombre y fecha de nacimiento.",
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="La fecha de inicio no puede ser posterior a la fecha de fin."
         )
 
+
+async def validar_disponibilidad_instalacion(db, instalacion_id: int, fecha_inicio: datetime, fecha_fin: datetime):
+    solapado = await crud_evento.existe_evento_solapado(db, instalacion_id, fecha_inicio, fecha_fin)
+    if solapado:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="La instalación ya está ocupada en esas fechas."
+        )
+
+
+def validar_aval_por_rol(rol: str):
+    # Definimos qué roles necesitan aval
+    roles_requieren_aval = ["estudiante", "externo"]
+
+    if rol not in ["docente", "estudiante", "administrativo", "externo"]:
+        raise HTTPException(status_code=400, detail="Rol no reconocido.")
+
+    return rol in roles_requieren_aval
+
+
+async def procesar_revision_secretaria(db, evento_id: int, aprobado: bool, observacion: str):
     try:
-        # --- PASO 2: LLAMADA A LA CAPA CRUD ---
-        # Si todas las validaciones pasan, le pedimos al CRUD que cree el paciente.
-        paciente_creado = await paciente_crud.crear_paciente(session, nuevo_paciente)
-        # --- PASO 3: RETORNAR EL RESULTADO ---
-        # Devolvemos el modelo del paciente creado.
-        return paciente_creado
-    except IntegrityError as e:
-        # Se deshace la transacción y se lanza el error. FastAPI maneja automáticamente el rollback
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Ya existe un paciente con el mismo ID (idPaciente)."
-        ) from e
-    
-async def listar_pacientes_service(session: AsyncSession) -> Sequence[PacienteModel]:
-    pacientes = await paciente_crud.listar_paciente(session)
-    return pacientes
+        async with db.begin():  # Transacción atómica
+            nuevo_estado = "Aprobado" if aprobado else "Rechazado"
 
-async def buscar_paciente_por_id(
-    session: AsyncSession,
-    id_paciente: int
-) -> PacienteModel:
-    paciente = await paciente_crud.buscar_paciente_por_id(session, id_paciente)
-    if not paciente:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f'No se encontró el paciente con el id {id_paciente}'
-        )
-    return paciente
+            # 1. Actualizar el estado del evento
+            await crud_evento.actualizar_estado(db, evento_id, nuevo_estado)
+
+            # 2. Crear acta
+            await crud_acta.crear_acta(db, evento_id=evento_id, observacion=observacion, estado=nuevo_estado)
+
+            # 3. Crear notificación interna
+            mensaje = f"Tu evento ha sido {nuevo_estado.lower()} por Secretaría."
+            await crud_notificacion.crear_notificacion(
+                db,
+                tipo="revisión_evento",
+                mensaje=mensaje,
+                destino="organizador"
+            )
+    except Exception as e:
+        await db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error en revisión: {str(e)}")
+
+
+async def crear_notificacion_interna(db, tipo: str, mensaje: str, destino: str):
+    notificacion = Notificacion(
+        tipo=tipo,
+        mensaje=mensaje,
+        destino=destino
+    )
+    db.add(notificacion)
+    await db.commit()
+    await db.refresh(notificacion)
+    return notificacion
