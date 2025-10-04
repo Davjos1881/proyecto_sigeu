@@ -51,7 +51,7 @@ def validar_aval_por_rol(rol: str) -> bool:
     return rol in ROLES_REQUIEREN_AVAL
 
 # ============================================================
-# 🧩 Validación completa de evento
+# 🧩 Validación completa de evento (antes del CRUD)
 # ============================================================
 async def validar_evento_completo(
     db: AsyncSession,
