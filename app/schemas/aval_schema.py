@@ -11,7 +11,6 @@ class AvalCrear(BaseModel):
     rol_responsable: str = Field(..., min_length=1, max_length=20)
     fecha_emision: Optional[date] = None
     emitido_por: Optional[str] = None
-    descripcion: Optional[str] = None
 
 
 class AvalEventoActualizar(BaseModel):
