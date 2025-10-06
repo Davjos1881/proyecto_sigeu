@@ -10,7 +10,7 @@ Proyecto backend construido con **FastAPI** y **MySQL**, utilizando **SQLAlchemy
 
 ## Estructura del proyecto
 ```
-hospital_api_backend/
+backend_sigeu/
 │
 ├── app/
 │   ├── api/                  # Rutas y versiones de la API
