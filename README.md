@@ -1,4 +1,4 @@
-# Hospital API Backend
+# Backend Proyecto Sigeu
 
 Proyecto backend construido con **FastAPI** y **MySQL**, utilizando **SQLAlchemy** como ORM y **asyncmy** como driver de conexión asincrónica.
 

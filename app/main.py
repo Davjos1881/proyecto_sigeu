@@ -1,14 +1,30 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
+from fastapi import FastAPI
+
+
+app = FastAPI(title="SIGEU API")
+
+
 
 # Importa el enrutador principal que agrupa todos los endpoints de la v1
 from app.api.v1.api import api_router_v1
 # Importa la configuración centralizada
 from app.core.config import settings
 
+# Importar routers individuales para registrarlos en la aplicación principal
+from app.api.v1.routes import (
+    evento_router,
+    certificado_router,
+    aval_router,
+    usuario_router,
+    estudiante_router,
+    docente_router,
+    organizacion_router,
+)
+
 # Crea la instancia principal de la aplicación FastAPI
-# Se añade metadata que se usará en la documentación automática de la API
 app = FastAPI(
     title=settings.APP_NAME,
     description="Una API para la creación y gestión de eventos universitarios",
@@ -26,9 +42,15 @@ app.add_middleware(
 )
 # --- Inclusión de Enrutadores de la API ---
 
-# Incluye todas las rutas de la v1 bajo el prefijo global /api/v1
-# La URL final para crear un paciente será: http://.../api/v1/pacientes/
-app.include_router(api_router_v1, prefix="/api/v1")
+# Incluir routers individuales bajo el prefijo /api/v1
+app.include_router(evento_router.router, prefix="/api/v1")
+app.include_router(certificado_router.router, prefix="/api/v1")
+app.include_router(aval_router.router, prefix="/api/v1")
+app.include_router(usuario_router.router, prefix="/api/v1")
+app.include_router(estudiante_router.router, prefix="/api/v1")
+app.include_router(docente_router.router, prefix="/api/v1")
+
+app.include_router(organizacion_router.router, prefix="/api/v1")
 
 # Redirección automática de la raíz a la documentación
 @app.get("/")

@@ -29,6 +29,10 @@ class UsuarioActualizar(BaseModel):
 
 class UsuarioRead(UsuarioBase):
     id_usuario: int
+    nombre: str
+    correo: EmailStr
+    rol_usuario: str   
+    telefono: Optional[str] = None
 
     model_config = ConfigDict(from_attributes=True)
 

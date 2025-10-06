@@ -6,7 +6,6 @@ class CertificadoCrear(BaseModel):
     organizacion_id_organizacion: int
     representante: str = Field(..., min_length=1, max_length=100)
     fecha_emision: Optional[date] = None
-    descripcion: Optional[str] = None
 
 class CertificadoActualizar(BaseModel):
     organizacion_id_organizacion: Optional[int] = None
@@ -19,6 +18,5 @@ class CertificadoRead(BaseModel):
     organizacion_id_organizacion: int
     representante: str
     fecha_emision: Optional[date]
-    descripcion: Optional[str]
 
     model_config = ConfigDict(from_attributes=True)

@@ -1,6 +1,8 @@
 from sqlalchemy import Column, Integer, String, ForeignKey
 from sqlalchemy.orm import relationship
 from app.db.mysql import Base
+from app.models.facultad import Facultad 
+from app.models.secretario_academico import SecretarioAcademico
 
 class UnidadAcademica(Base):
     __tablename__ = "unidad_academica"

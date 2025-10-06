@@ -27,3 +27,5 @@ async def get_session() -> AsyncGenerator[AsyncSession, None]:
     """
     async with AsyncSession(bind=engine, expire_on_commit=False) as session:
         yield session
+
+

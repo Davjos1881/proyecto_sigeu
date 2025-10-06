@@ -34,6 +34,5 @@ class AvalRead(BaseModel):
     rol_responsable: str
     fecha_emision: Optional[date]
     emitido_por: Optional[str]
-    descripcion: Optional[str]
 
     model_config = ConfigDict(from_attributes=True)

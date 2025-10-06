@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
-from app.db.database import get_db
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.future import select
+from app.db.mysql import get_session
 from app.models.aval import AvalEvento
 from app.schemas.aval_schema import AvalCrear, AvalEventoActualizar, AvalRead
 from typing import List
@@ -12,52 +13,52 @@ router = APIRouter(
 
 # Crear un aval
 @router.post("/", response_model=AvalRead, status_code=status.HTTP_201_CREATED)
-def crear_aval(aval: AvalCrear, db: Session = Depends(get_db)):
+async def crear_aval(aval: AvalCrear, db: AsyncSession = Depends(get_session)):
     nuevo_aval = AvalEvento(**aval.dict())
     db.add(nuevo_aval)
-    db.commit()
-    db.refresh(nuevo_aval)
+    await db.commit()
+    await db.refresh(nuevo_aval)
     return nuevo_aval
 
-
-
+# Listar avales
 @router.get("/", response_model=List[AvalRead])
-def listar_avales(db: Session = Depends(get_db)):
-    avales = db.query(AvalEvento).all()
+async def listar_avales(db: AsyncSession = Depends(get_session)):
+    result = await db.execute(select(AvalEvento))
+    avales = result.scalars().all()
     return avales
 
-
-
+# Obtener un aval por ID
 @router.get("/{id_aval}", response_model=AvalRead)
-def obtener_aval(id_aval: int, db: Session = Depends(get_db)):
-    aval = db.query(AvalEvento).filter(AvalEvento.id_aval == id_aval).first()
+async def obtener_aval(id_aval: int, db: AsyncSession = Depends(get_session)):
+    result = await db.execute(select(AvalEvento).where(AvalEvento.id_aval == id_aval))
+    aval = result.scalars().first()
     if not aval:
         raise HTTPException(status_code=404, detail="Aval no encontrado")
     return aval
 
-
 # Actualizar un aval
 @router.put("/{id_aval}", response_model=AvalRead)
-def actualizar_aval(id_aval: int, aval_update: AvalEventoActualizar, db: Session = Depends(get_db)):
-    aval = db.query(AvalEvento).filter(AvalEvento.id_aval == id_aval).first()
+async def actualizar_aval(id_aval: int, aval_update: AvalEventoActualizar, db: AsyncSession = Depends(get_session)):
+    result = await db.execute(select(AvalEvento).where(AvalEvento.id_aval == id_aval))
+    aval = result.scalars().first()
     if not aval:
         raise HTTPException(status_code=404, detail="Aval no encontrado")
 
     for key, value in aval_update.dict(exclude_unset=True).items():
         setattr(aval, key, value)
 
-    db.commit()
-    db.refresh(aval)
+    await db.commit()
+    await db.refresh(aval)
     return aval
 
-
+# Eliminar un aval
 @router.delete("/{id_aval}", status_code=status.HTTP_204_NO_CONTENT)
-def eliminar_aval(id_aval: int, db: Session = Depends(get_db)):
-    aval = db.query(AvalEvento).filter(AvalEvento.id_aval == id_aval).first()
+async def eliminar_aval(id_aval: int, db: AsyncSession = Depends(get_session)):
+    result = await db.execute(select(AvalEvento).where(AvalEvento.id_aval == id_aval))
+    aval = result.scalars().first()
     if not aval:
         raise HTTPException(status_code=404, detail="Aval no encontrado")
 
-    db.delete(aval)
-    db.commit()
+    await db.delete(aval)
+    await db.commit()
     return None
-

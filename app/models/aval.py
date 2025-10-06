@@ -1,6 +1,7 @@
 from sqlalchemy import Column, Integer, String, Date, Text, ForeignKey
 from sqlalchemy.orm import relationship
 from app.db.mysql import Base
+from app.models.unidad_academica import UnidadAcademica
 
 class AvalEvento(Base):
     __tablename__ = "aval_evento"
@@ -13,7 +14,6 @@ class AvalEvento(Base):
     rol_responsable = Column(String(20), nullable=False)  # 'estudiante'|'docente'
     fecha_emision = Column(Date, nullable=True)
     emitido_por = Column(String(100), nullable=True)
-    descripcion = Column(Text, nullable=True)
 
     evento = relationship("Evento", back_populates="avales")
     unidad = relationship("UnidadAcademica")
